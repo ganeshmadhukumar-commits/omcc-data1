@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Old Monk Cricket Club</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          navy: {
+            50:'#eef3fb',100:'#dbe7f7',200:'#b3cdef',300:'#84aee4',
+            400:'#4f87d3',500:'#2e63b8',600:'#1f4894',700:'#1a3a78',
+            800:'#152e5e',900:'#0d1c3d',950:'#08122b'
+          },
+          gold: { 400:'#e8b93e', 500:'#d4a017', 600:'#b3860f' }
+        },
+        fontFamily: { sans: ['Segoe UI','Inter','system-ui','sans-serif'] }
+      }
+    }
+  }
+</script>
+<style>
+  body { background: #f1f4f9; }
+  .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #b3cdef; border-radius: 4px; }
+  .tag-chip { display:inline-flex; align-items:center; gap:.25rem; }
+  .fade-in { animation: fadeIn .18s ease-out; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform: translateY(0);} }
+  input:focus, select:focus, textarea:focus { outline: none; box-shadow: 0 0 0 3px rgba(46,99,184,0.25); border-color:#2e63b8; }
+</style>
+</head>
+<body class="min-h-screen font-sans text-navy-900">
+
+<!-- ================= HEADER / NAV ================= -->
+<header class="bg-gradient-to-r from-navy-900 via-navy-800 to-navy-900 text-white shadow-lg sticky top-0 z-30">
+  <div class="max-w-7xl mx-auto px-4">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-2xl">🏏</span>
+        <div class="leading-tight">
+          <p class="font-bold text-base sm:text-lg tracking-wide">Old Monk Cricket Club</p>
+          <p class="text-[10px] sm:text-xs text-navy-300 -mt-0.5">Squad · Attendance · Finance</p>
+        </div>
+      </div>
+      <div id="admin-controls" class="flex items-center gap-2"></div>
+    </div>
+    <nav id="nav-container" class="flex gap-1 overflow-x-auto scrollbar-thin pb-2 -mt-1"></nav>
+  </div>
+</header>
+
+<div id="sync-badge" class="max-w-7xl mx-auto px-4 pt-2"></div>
+
+<!-- ================= MAIN ================= -->
+<main id="main-content" class="max-w-7xl mx-auto px-4 py-4 pb-16"></main>
+
+<footer class="text-center text-xs text-navy-500 py-6">
+  🏏 Old Monk Cricket Club &middot; Team Management App &middot; All amounts in ₹ (INR)
+</footer>
+
+<!-- ================= TOAST ================= -->
+<div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end"></div>
+
+<!-- ================= LOGIN MODAL ================= -->
+<div id="modal-login" class="hidden fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 fade-in">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="text-2xl">🛡️</span>
+      <h3 class="text-lg font-bold text-navy-900">Admin Login</h3>
+    </div>
+    <p class="text-sm text-navy-600 mb-3">Enter the admin password to manage squad, payments and matches.</p>
+    <input id="login-password" type="password" placeholder="Password"
+      class="w-full border border-navy-200 rounded-lg px-3 py-2 mb-1 text-sm"
+      onkeydown="if(event.key==='Enter') submitLogin()">
+    <p id="login-error" class="text-red-600 text-xs mb-3 hidden">Incorrect password. Try again.</p>
+    <div class="flex gap-2 mt-3">
+      <button onclick="closeLoginModal()" class="flex-1 border border-navy-200 rounded-lg py-2 text-sm font-medium text-navy-700 hover:bg-navy-50">Cancel</button>
+      <button onclick="submitLogin()" class="flex-1 bg-navy-700 hover:bg-navy-800 text-white rounded-lg py-2 text-sm font-semibold">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PLAYER ADD/EDIT MODAL ================= -->
+<div id="modal-player" class="hidden fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 fade-in">
+    <h3 id="player-modal-title" class="text-lg font-bold text-navy-900 mb-4">Add Player</h3>
+    <input type="hidden" id="player-form-id">
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold text-navy-600">Full Name *</label>
+        <input id="player-form-name" type="text" placeholder="e.g. Virat Sharma" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-navy-600">Phone (optional)</label>
+        <input id="player-form-phone" type="text" placeholder="e.g. 98765xxxxx" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-navy-600">Playing Role</label>
+        <select id="player-form-role" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          <option>Batsman</option>
+          <option>Bowler</option>
+          <option>All-Rounder</option>
+          <option>Wicket-Keeper</option>
+        </select>
+      </div>
+      <div id="player-form-balance-wrap">
+        <label class="text-xs font-semibold text-navy-600">Opening Balance (₹)</label>
+        <input id="player-form-balance" type="number" value="0" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="closePlayerModal()" class="flex-1 border border-navy-200 rounded-lg py-2 text-sm font-medium text-navy-700 hover:bg-navy-50">Cancel</button>
+      <button onclick="savePlayerModal()" class="flex-1 bg-navy-700 hover:bg-navy-800 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PAYMENT EDIT MODAL ================= -->
+<div id="modal-payment-edit" class="hidden fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 fade-in">
+    <h3 class="text-lg font-bold text-navy-900 mb-1">Edit Payment</h3>
+    <p class="text-sm text-navy-500 mb-4">Player: <span id="payment-edit-player-name" class="font-semibold text-navy-800"></span></p>
+    <input type="hidden" id="payment-edit-id">
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold text-navy-600">Amount Paid (₹) *</label>
+        <input id="payment-edit-amount" type="number" min="1" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-navy-600">Date</label>
+        <input id="payment-edit-date" type="date" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-navy-600">Description</label>
+        <input id="payment-edit-desc" type="text" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="closePaymentEditModal()" class="flex-1 border border-navy-200 rounded-lg py-2 text-sm font-medium text-navy-700 hover:bg-navy-50">Cancel</button>
+      <button onclick="savePaymentEdit()" class="flex-1 bg-navy-700 hover:bg-navy-800 text-white rounded-lg py-2 text-sm font-semibold">Save Changes</button>
+    </div>
+    <button onclick="deletePaymentFromModal()" class="w-full mt-2 text-red-600 hover:bg-red-50 rounded-lg py-2 text-sm font-semibold">🗑️ Delete This Payment</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   OLD MONK CRICKET CLUB — APP LOGIC
+   ========================================================================= */
+
+const ADMIN_PASSWORD = 'admin@123';
+const LS_DATA_KEY = 'omcc_data_v1';
+const LS_GH_KEY = 'omcc_github_config_v1';
+const SS_ADMIN_KEY = 'omcc_admin_session_v1';
+
+let state = null;
+let githubConfig = null;
+let githubSha = null;
+let isAdmin = false;
+let currentView = 'dashboard';
+let adminTab = 'squad';
+let matchEditingId = null;
+let syncStatus = 'idle';
+let syncMessage = 'Not connected to GitHub — using local browser storage.';
+
+/* ---------------------------- MOCK DATA ---------------------------- */
+function getMockData(){
+  return {
+    players: [
+      { id:'p1', name:'Virat Sharma', phone:'9876500001', role:'Batsman', balance:700 },
+      { id:'p2', name:'Rohit Patel', phone:'9876500002', role:'All-Rounder', balance:-200 },
+      { id:'p3', name:'Jasprit Kumar', phone:'9876500003', role:'Bowler', balance:250 }
+    ],
+    matches: [
+      { id:'m1', date:'2026-09-20', day:'Sunday', opponent:'Royal Strikers CC', fee:300, presentPlayerIds:['p1','p2'] }
+    ],
+    ledger: [
+      { id:'l1', playerId:'p1', playerName:'Virat Sharma', type:'Advance Paid', amount:1000, date:'2026-09-01', description:'Initial advance payment' },
+      { id:'l2', playerId:'p2', playerName:'Rohit Patel', type:'Advance Paid', amount:100, date:'2026-09-05', description:'Initial advance payment' },
+      { id:'l3', playerId:'p3', playerName:'Jasprit Kumar', type:'Advance Paid', amount:250, date:'2026-09-10', description:'Initial advance payment' },
+      { id:'l4', matchId:'m1', playerId:'p1', playerName:'Virat Sharma', type:'Match Fee Deduction', amount:300, date:'2026-09-20', description:'Match fee vs Royal Strikers CC' },
+      { id:'l5', matchId:'m1', playerId:'p2', playerName:'Rohit Patel', type:'Match Fee Deduction', amount:300, date:'2026-09-20', description:'Match fee vs Royal Strikers CC' }
+    ]
+  };
+}
+
+/* ---------------------------- HELPERS ---------------------------- */
+function genId(prefix){ return prefix + '_' + Date.now() + '_' + Math.floor(Math.random()*10000); }
+
+function formatINR(amount){
+  const n = Number(amount) || 0;
+  return new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR', maximumFractionDigits:0 }).format(n);
+}
+
+function formatDate(d){
+  try{
+    return new Date(d+'T00:00:00').toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  }catch(e){ return d; }
+}
+
+function dayFromDate(d){
+  try{ return new Date(d+'T00:00:00').toLocaleDateString('en-IN', { weekday:'long' }); }catch(e){ return ''; }
+}
+
+function getStatusBadge(balance){
+  if(balance < 0) return { label:'Payment Due', cls:'bg-red-100 text-red-700 border border-red-200' };
+  if(balance < 150) return { label:'Low Balance', cls:'bg-amber-100 text-amber-700 border border-amber-200' };
+  return { label:'Paid Up', cls:'bg-emerald-100 text-emerald-700 border border-emerald-200' };
+}
+
+function balanceTextClass(balance){
+  if(balance < 0) return 'text-red-600 font-bold';
+  if(balance < 150) return 'text-amber-600 font-bold';
+  return 'text-emerald-600 font-bold';
+}
+
+function getPlayerById(id){ return state.players.find(p => p.id === id); }
+
+function showToast(msg, type){
+  type = type || 'success';
+  const colors = {
+    success: 'bg-emerald-600',
+    error: 'bg-red-600',
+    info: 'bg-navy-700'
+  };
+  const el = document.createElement('div');
+  el.className = `fade-in ${colors[type]} text-white text-sm px-4 py-2.5 rounded-lg shadow-lg max-w-xs`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => { el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 3000);
+}
+
+/* ---------------------------- PERSISTENCE ---------------------------- */
+function loadLocalOrMock(){
+  const raw = localStorage.getItem(LS_DATA_KEY);
+  if(raw){
+    try{ return JSON.parse(raw); }catch(e){ /* fall through */ }
+  }
+  return getMockData();
+}
+
+async function loadData(){
+  // Always have *something* valid to render immediately (local cache or mock data),
+  // so the UI never crashes on a null state while a GitHub fetch is still in flight.
+  if(!state) state = loadLocalOrMock();
+
+  if(githubConfig && githubConfig.owner && githubConfig.repo && githubConfig.token){
+    syncStatus = 'loading'; syncMessage = 'Loading data from GitHub…'; render();
+    try{
+      const result = await githubGetFile(githubConfig);
+      if(result){
+        state = result.data;
+        githubSha = result.sha;
+        localStorage.setItem(LS_DATA_KEY, JSON.stringify(state));
+        syncStatus = 'saved';
+        syncMessage = 'Loaded live data from GitHub (' + githubConfig.owner + '/' + githubConfig.repo + ').';
+      } else {
+        syncStatus = 'idle';
+        syncMessage = 'GitHub file not found yet — it will be created on first save.';
+      }
+    }catch(e){
+      console.error(e);
+      syncStatus = 'error';
+      syncMessage = 'GitHub load failed (' + e.message + '). Using local cached data instead.';
+    }
+    return;
+  }
+  syncStatus = 'idle';
+  syncMessage = 'Not connected to GitHub — using local browser storage only.';
+}
+
+async function persist(opts){
+  opts = opts || {};
+  const pushToGithub = opts.pushToGithub !== false;
+  localStorage.setItem(LS_DATA_KEY, JSON.stringify(state));
+
+  if(pushToGithub && githubConfig && githubConfig.owner && githubConfig.repo && githubConfig.token){
+    syncStatus = 'saving'; syncMessage = 'Saving to GitHub…'; render();
+    try{
+      const res = await githubPutFile(githubConfig, state, githubSha);
+      githubSha = res.content.sha;
+      syncStatus = 'saved';
+      syncMessage = 'Saved to GitHub at ' + new Date().toLocaleTimeString('en-IN');
+    }catch(e){
+      console.error(e);
+      syncStatus = 'error';
+      syncMessage = 'GitHub save failed: ' + e.message + ' (data is safe in local browser storage).';
+    }
+  }
+  render();
+}
+
+/* ---------------------------- GITHUB API (Contents API) ---------------------------- */
+const GITHUB_API = 'https://api.github.com';
+
+function b64EncodeUnicode(str){
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function b64DecodeUnicode(str){
+  return decodeURIComponent(escape(atob(str)));
+}
+
+function fetchWithTimeout(url, options, timeoutMs){
+  timeoutMs = timeoutMs || 15000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer))
+    .catch(e => {
+      if(e.name === 'AbortError') throw new Error('Request timed out — check your internet connection or GitHub status.');
+      throw e;
+    });
+}
+
+async function githubGetFile(cfg){
+  const url = `${GITHUB_API}/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(cfg.path)}?ref=${encodeURIComponent(cfg.branch || 'main')}`;
+  const headers = { 'Accept':'application/vnd.github+json' };
+  if(cfg.token) headers['Authorization'] = 'token ' + cfg.token;
+  const res = await fetchWithTimeout(url, { headers });
+  if(res.status === 404) return null;
+  if(!res.ok){
+    const body = await res.text().catch(()=> '');
+    throw new Error('HTTP ' + res.status + (body ? ' — ' + body.slice(0,150) : ''));
+  }
+  const json = await res.json();
+  const content = b64DecodeUnicode(json.content.replace(/\n/g,''));
+  return { data: JSON.parse(content), sha: json.sha };
+}
+
+async function githubPutFile(cfg, dataObj, sha){
+  const url = `${GITHUB_API}/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(cfg.path)}`;
+  const body = {
+    message: 'Old Monk CC data update — ' + new Date().toISOString(),
+    content: b64EncodeUnicode(JSON.stringify(dataObj, null, 2)),
+    branch: cfg.branch || 'main'
+  };
+  if(sha) body.sha = sha;
+  const res = await fetchWithTimeout(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'token ' + cfg.token,
+      'Accept':'application/vnd.github+json',
+      'Content-Type':'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok){
+    const errJson = await res.json().catch(()=>({}));
+    throw new Error(errJson.message || ('HTTP ' + res.status));
+  }
+  return await res.json();
+}
+
+/* ---------------------------- AUTH ---------------------------- */
+function openLoginModal(){
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').classList.add('hidden');
+  document.getElementById('modal-login').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('login-password').focus(), 50);
+}
+function closeLoginModal(){ document.getElementById('modal-login').classList.add('hidden'); }
+function submitLogin(){
+  const val = document.getElementById('login-password').value;
+  if(val === ADMIN_PASSWORD){
+    isAdmin = true;
+    sessionStorage.setItem(SS_ADMIN_KEY, 'true');
+    closeLoginModal();
+    currentView = 'admin';
+    showToast('Welcome, Admin! 🛡️');
+    render();
+  } else {
+    document.getElementById('login-error').classList.remove('hidden');
+  }
+}
+function logout(){
+  isAdmin = false;
+  sessionStorage.removeItem(SS_ADMIN_KEY);
+  if(currentView === 'admin') currentView = 'dashboard';
+  showToast('Logged out of Admin mode', 'info');
+  render();
+}
+
+/* ---------------------------- NAVIGATION ---------------------------- */
+function setView(view){ currentView = view; render(); window.scrollTo({top:0, behavior:'smooth'}); }
+function setAdminTab(tab){ adminTab = tab; render(); }
+
+function renderNav(){
+  const tabs = [
+    { id:'dashboard', label:'Dashboard', icon:'🏠' },
+    { id:'squad', label:'Squad Directory', icon:'👥' },
+    { id:'playerReports', label:'Player Reports', icon:'📊' },
+    { id:'matchReports', label:'Match Reports', icon:'📋' }
+  ];
+  if(isAdmin) tabs.push({ id:'admin', label:'Admin Panel', icon:'🛡️' });
+
+  return tabs.map(t => `
+    <button onclick="setView('${t.id}')"
+      class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition
+        ${currentView === t.id ? 'bg-white text-navy-900 shadow' : 'text-navy-200 hover:bg-white/10'}">
+      <span class="mr-1">${t.icon}</span>${t.label}
+    </button>
+  `).join('');
+}
+
+function renderAdminControls(){
+  if(isAdmin){
+    return `
+      <span class="hidden sm:inline-flex items-center gap-1 bg-gold-500/20 text-gold-400 text-xs font-semibold px-2.5 py-1 rounded-full border border-gold-500/40">
+        🛡️ Admin Mode
+      </span>
+      <button onclick="logout()" class="bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-medium px-3 py-1.5 rounded-lg">
+        🚪 Logout
+      </button>`;
+  }
+  return `
+    <button onclick="openLoginModal()" class="bg-gold-500 hover:bg-gold-600 text-navy-950 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg shadow">
+      🛡️ Manage Team
+    </button>`;
+}
+
+function renderSyncBadge(){
+  const styles = {
+    idle:   'bg-slate-100 text-slate-600 border-slate-200',
+    loading:'bg-blue-50 text-blue-700 border-blue-200',
+    saving: 'bg-blue-50 text-blue-700 border-blue-200',
+    saved:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+    error:  'bg-red-50 text-red-700 border-red-200'
+  };
+  const icons = { idle:'💾', loading:'🔄', saving:'🔄', saved:'✅', error:'⚠️' };
+  return `
+    <div class="text-xs px-3 py-1.5 rounded-lg border ${styles[syncStatus]} flex items-center gap-1.5">
+      <span>${icons[syncStatus]}</span><span>${syncMessage}</span>
+    </div>`;
+}
+
+/* ---------------------------- MASTER RENDER ---------------------------- */
+function render(){
+  document.getElementById('nav-container').innerHTML = renderNav();
+  document.getElementById('admin-controls').innerHTML = renderAdminControls();
+  document.getElementById('sync-badge').innerHTML = renderSyncBadge();
+
+  let view = currentView;
+  if(view === 'admin' && !isAdmin) view = 'dashboard';
+
+  let html = '';
+  try{
+    if(!state){
+      html = `<div class="text-center py-16 text-navy-400">Preparing your data…</div>`;
+    } else if(view === 'dashboard') html = renderDashboardView();
+    else if(view === 'squad') html = renderSquadView();
+    else if(view === 'playerReports') html = renderPlayerReportsView();
+    else if(view === 'matchReports') html = renderMatchReportsView();
+    else if(view === 'admin') html = renderAdminView();
+  }catch(e){
+    console.error('Render error:', e);
+    html = `
+      <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+        <p class="text-red-700 font-semibold mb-1">⚠️ Something went wrong loading this view.</p>
+        <p class="text-red-600 text-sm mb-4">${escapeHtml(e.message || 'Unknown error')}</p>
+        <button onclick="setView('dashboard')" class="bg-navy-700 hover:bg-navy-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">Go to Dashboard</button>
+      </div>`;
+  }
+
+  document.getElementById('main-content').innerHTML = `<div class="fade-in">${html}</div>`;
+
+  // Post-render hooks that need live DOM refs
+  if(state && view === 'dashboard') renderDashboardTable();
+}
+
+/* =========================================================================
+   DASHBOARD (PUBLIC)
+   ========================================================================= */
+function renderDashboardView(){
+  const totalFunds = state.players.reduce((s,p) => s + p.balance, 0);
+  const activePlayers = state.players.length;
+  const matchesPlayed = state.matches.length;
+
+  return `
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div class="bg-gradient-to-br from-navy-800 to-navy-700 text-white rounded-xl p-5 shadow">
+        <p class="text-navy-200 text-xs font-medium uppercase tracking-wide">Total Team Funds</p>
+        <p class="text-3xl font-bold mt-1">${formatINR(totalFunds)}</p>
+        <p class="text-navy-300 text-xs mt-1">Sum of all player balances</p>
+      </div>
+      <div class="bg-white rounded-xl p-5 shadow border border-navy-100">
+        <p class="text-navy-500 text-xs font-medium uppercase tracking-wide">Active Players</p>
+        <p class="text-3xl font-bold mt-1 text-navy-900">👥 ${activePlayers}</p>
+        <p class="text-navy-400 text-xs mt-1">Registered squad members</p>
+      </div>
+      <div class="bg-white rounded-xl p-5 shadow border border-navy-100">
+        <p class="text-navy-500 text-xs font-medium uppercase tracking-wide">Matches Played</p>
+        <p class="text-3xl font-bold mt-1 text-navy-900">🏏 ${matchesPlayed}</p>
+        <p class="text-navy-400 text-xs mt-1">Logged fixtures so far</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow border border-navy-100 overflow-hidden">
+      <div class="p-4 border-b border-navy-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 class="font-bold text-navy-900">Squad Balance Overview</h2>
+        <input id="dashboard-search" type="text" placeholder="🔍 Search player…"
+          oninput="renderDashboardTable()"
+          class="border border-navy-200 rounded-lg px-3 py-1.5 text-sm w-full sm:w-56">
+      </div>
+      <div class="overflow-x-auto scrollbar-thin">
+        <table class="w-full text-sm">
+          <thead class="bg-navy-50 text-navy-600 text-xs uppercase">
+            <tr>
+              <th class="text-left px-4 py-2">Player</th>
+              <th class="text-left px-4 py-2">Role</th>
+              <th class="text-right px-4 py-2">Balance</th>
+              <th class="text-center px-4 py-2">Status</th>
+            </tr>
+          </thead>
+          <tbody id="dashboard-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderDashboardTable(){
+  const tbody = document.getElementById('dashboard-table-body');
+  if(!tbody) return;
+  const search = (document.getElementById('dashboard-search')?.value || '').toLowerCase();
+  const rows = state.players
+    .filter(p => p.name.toLowerCase().includes(search))
+    .sort((a,b) => a.name.localeCompare(b.name));
+
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-navy-400 py-6">No players found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(p => {
+    const badge = getStatusBadge(p.balance);
+    return `
+      <tr class="border-b border-navy-50 hover:bg-navy-50/50">
+        <td class="px-4 py-2.5 font-medium text-navy-900">${escapeHtml(p.name)}</td>
+        <td class="px-4 py-2.5 text-navy-500">${p.role}</td>
+        <td class="px-4 py-2.5 text-right ${balanceTextClass(p.balance)}">${formatINR(p.balance)}</td>
+        <td class="px-4 py-2.5 text-center">
+          <span class="text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}">${badge.label}</span>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* =========================================================================
+   SQUAD DIRECTORY (PUBLIC)
+   ========================================================================= */
+function renderSquadView(){
+  const roleColors = {
+    'Batsman':'bg-blue-100 text-blue-700',
+    'Bowler':'bg-purple-100 text-purple-700',
+    'All-Rounder':'bg-teal-100 text-teal-700',
+    'Wicket-Keeper':'bg-orange-100 text-orange-700'
+  };
+  const cards = state.players.map(p => {
+    const badge = getStatusBadge(p.balance);
+    return `
+      <div class="bg-white rounded-xl shadow border border-navy-100 p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-full bg-navy-800 text-white flex items-center justify-center font-bold text-lg">
+              ${escapeHtml(p.name.charAt(0))}
+            </div>
+            <div>
+              <p class="font-bold text-navy-900">${escapeHtml(p.name)}</p>
+              <span class="text-xs font-medium px-2 py-0.5 rounded-full ${roleColors[p.role] || 'bg-slate-100 text-slate-600'}">${p.role}</span>
+            </div>
+          </div>
+          <span class="text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}">${badge.label}</span>
+        </div>
+        <div class="mt-3 pt-3 border-t border-navy-50 flex items-center justify-between text-sm">
+          <span class="text-navy-500">${p.phone ? '📱 ' + escapeHtml(p.phone) : '&nbsp;'}</span>
+          <span class="${balanceTextClass(p.balance)}">${formatINR(p.balance)}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-navy-900">👥 Squad Directory</h2>
+      <span class="text-sm text-navy-500">${state.players.length} players</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      ${cards || `<p class="text-navy-400 col-span-3 text-center py-8">No players in the squad yet.</p>`}
+    </div>
+  `;
+}
+
+/* =========================================================================
+   PLAYER REPORTS (PUBLIC)
+   ========================================================================= */
+let selectedReportPlayerId = null;
+
+function renderPlayerReportsView(){
+  if(!selectedReportPlayerId && state.players.length) selectedReportPlayerId = state.players[0].id;
+
+  const options = state.players
+    .sort((a,b)=>a.name.localeCompare(b.name))
+    .map(p => `<option value="${p.id}" ${p.id===selectedReportPlayerId?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+
+  return `
+    <div class="mb-5">
+      <h2 class="text-xl font-bold text-navy-900 mb-3">📊 Player Ledger Report</h2>
+      <div class="bg-white rounded-xl shadow border border-navy-100 p-4">
+        <label class="text-xs font-semibold text-navy-600">Select Player</label>
+        <select id="report-player-select" onchange="onReportPlayerChange()"
+          class="w-full sm:w-72 border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          ${options || '<option>No players</option>'}
+        </select>
+      </div>
+    </div>
+    <div id="player-report-content"></div>
+  `;
+}
+
+function onReportPlayerChange(){
+  selectedReportPlayerId = document.getElementById('report-player-select').value;
+  renderPlayerReportContent();
+}
+
+function renderPlayerReportContent(){
+  const container = document.getElementById('player-report-content');
+  if(!container) return;
+  const player = getPlayerById(selectedReportPlayerId);
+  if(!player){ container.innerHTML = `<p class="text-navy-400 text-center py-8">Select a player to view their report.</p>`; return; }
+
+  const badge = getStatusBadge(player.balance);
+  const entries = state.ledger
+    .filter(l => l.playerId === player.id)
+    .sort((a,b) => new Date(a.date) - new Date(b.date) || a.id.localeCompare(b.id));
+
+  // compute running balance
+  let running = 0;
+  const rows = entries.map(e => {
+    running += (e.type === 'Advance Paid' ? e.amount : -e.amount);
+    return { ...e, runningBalance: running };
+  }).reverse(); // show most recent first
+
+  const rowsHtml = rows.map(e => `
+    <tr class="border-b border-navy-50">
+      <td class="px-4 py-2.5 text-navy-500">${formatDate(e.date)}</td>
+      <td class="px-4 py-2.5">
+        <span class="text-xs font-semibold px-2 py-1 rounded-full ${e.type==='Advance Paid' ? 'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'}">
+          ${e.type==='Advance Paid' ? '💰 Advance Paid' : '🏏 Match Fee'}
+        </span>
+      </td>
+      <td class="px-4 py-2.5 text-navy-600">${escapeHtml(e.description || '')}</td>
+      <td class="px-4 py-2.5 text-right font-medium ${e.type==='Advance Paid' ? 'text-emerald-600':'text-red-600'}">
+        ${e.type==='Advance Paid' ? '+' : '-'}${formatINR(e.amount)}
+      </td>
+      <td class="px-4 py-2.5 text-right font-semibold ${balanceTextClass(e.runningBalance)}">${formatINR(e.runningBalance)}</td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="bg-white rounded-xl shadow border border-navy-100 p-5 mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-lg font-bold text-navy-900">${escapeHtml(player.name)}</p>
+          <p class="text-sm text-navy-500">${player.role}${player.phone ? ' · 📱 ' + escapeHtml(player.phone) : ''}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-navy-400 uppercase tracking-wide">Current Balance</p>
+          <p class="text-2xl font-bold ${balanceTextClass(player.balance)}">${formatINR(player.balance)}</p>
+          <span class="text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}">${badge.label}</span>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow border border-navy-100 overflow-hidden">
+      <div class="p-4 border-b border-navy-100">
+        <h3 class="font-bold text-navy-900">Transaction History</h3>
+      </div>
+      <div class="overflow-x-auto scrollbar-thin">
+        <table class="w-full text-sm">
+          <thead class="bg-navy-50 text-navy-600 text-xs uppercase">
+            <tr>
+              <th class="text-left px-4 py-2">Date</th>
+              <th class="text-left px-4 py-2">Type</th>
+              <th class="text-left px-4 py-2">Description</th>
+              <th class="text-right px-4 py-2">Amount</th>
+              <th class="text-right px-4 py-2">Balance After</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || `<tr><td colspan="5" class="text-center text-navy-400 py-6">No transactions yet.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================================
+   MATCH REPORTS (PUBLIC)
+   ========================================================================= */
+function renderMatchReportsView(){
+  const matches = [...state.matches].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  const cards = matches.map(m => {
+    const present = m.presentPlayerIds.map(id => getPlayerById(id)).filter(Boolean);
+    const absent = state.players.filter(p => !m.presentPlayerIds.includes(p.id));
+    return `
+      <div class="bg-white rounded-xl shadow border border-navy-100 p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <p class="font-bold text-navy-900 text-lg">🆚 ${escapeHtml(m.opponent)}</p>
+            <p class="text-sm text-navy-500">📅 ${formatDate(m.date)} · ${m.day}</p>
+          </div>
+          <span class="bg-navy-100 text-navy-700 text-sm font-semibold px-3 py-1 rounded-full">Fee: ${formatINR(m.fee)}</span>
+        </div>
+        <div class="mb-2">
+          <p class="text-xs font-semibold text-navy-500 uppercase mb-1">Present (${present.length})</p>
+          <div class="flex flex-wrap gap-1.5">
+            ${present.map(p => `<span class="tag-chip bg-emerald-100 text-emerald-700 text-xs font-medium px-2.5 py-1 rounded-full">✅ ${escapeHtml(p.name)}</span>`).join('') || '<span class="text-navy-400 text-xs">None recorded</span>'}
+          </div>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-navy-500 uppercase mb-1">Absent (${absent.length})</p>
+          <div class="flex flex-wrap gap-1.5">
+            ${absent.map(p => `<span class="tag-chip bg-slate-100 text-slate-500 text-xs font-medium px-2.5 py-1 rounded-full">⬜ ${escapeHtml(p.name)}</span>`).join('') || '<span class="text-navy-400 text-xs">Full squad turnout</span>'}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-navy-900">📋 Match Reports History</h2>
+      <span class="text-sm text-navy-500">${matches.length} matches logged</span>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      ${cards || `<p class="text-navy-400 text-center py-8 col-span-2">No matches logged yet.</p>`}
+    </div>
+  `;
+}
+
+/* =========================================================================
+   ADMIN PANEL
+   ========================================================================= */
+function renderAdminView(){
+  const tabs = [
+    { id:'squad', label:'Squad Management', icon:'👥' },
+    { id:'payment', label:'Payment Management', icon:'💰' },
+    { id:'match', label:'Match Logistics', icon:'🏏' },
+    { id:'settings', label:'GitHub Sync', icon:'🔗' }
+  ];
+
+  const tabNav = tabs.map(t => `
+    <button onclick="setAdminTab('${t.id}')"
+      class="px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition
+        ${adminTab===t.id ? 'bg-navy-800 text-white shadow' : 'bg-white text-navy-600 border border-navy-100 hover:bg-navy-50'}">
+      ${t.icon} ${t.label}
+    </button>
+  `).join('');
+
+  let content = '';
+  if(adminTab === 'squad') content = renderAdminSquadTab();
+  else if(adminTab === 'payment') content = renderAdminPaymentTab();
+  else if(adminTab === 'match') content = renderAdminMatchTab();
+  else if(adminTab === 'settings') content = renderAdminSettingsTab();
+
+  return `
+    <div class="flex items-center gap-2 mb-2">
+      <h2 class="text-xl font-bold text-navy-900">🛡️ Admin Panel</h2>
+      <span class="text-xs bg-gold-500/20 text-gold-600 font-semibold px-2 py-0.5 rounded-full border border-gold-500/40">Restricted Access</span>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-5">${tabNav}</div>
+    <div>${content}</div>
+  `;
+}
+
+/* --- Squad Management --- */
+function renderAdminSquadTab(){
+  const rows = [...state.players].sort((a,b)=>a.name.localeCompare(b.name)).map(p => {
+    const badge = getStatusBadge(p.balance);
+    return `
+      <tr class="border-b border-navy-50">
+        <td class="px-4 py-2.5 font-medium text-navy-900">${escapeHtml(p.name)}</td>
+        <td class="px-4 py-2.5 text-navy-500">${p.role}</td>
+        <td class="px-4 py-2.5 text-navy-500">${p.phone ? escapeHtml(p.phone) : '—'}</td>
+        <td class="px-4 py-2.5 text-right ${balanceTextClass(p.balance)}">${formatINR(p.balance)}</td>
+        <td class="px-4 py-2.5 text-center">
+          <span class="text-xs font-semibold px-2 py-1 rounded-full ${badge.cls}">${badge.label}</span>
+        </td>
+        <td class="px-4 py-2.5 text-right whitespace-nowrap">
+          <button onclick="openPlayerModal('${p.id}')" class="text-navy-600 hover:text-navy-900 text-xs font-semibold px-2 py-1 rounded hover:bg-navy-50">✏️ Edit</button>
+          <button onclick="deletePlayer('${p.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50">🗑️ Remove</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div class="bg-white rounded-xl shadow border border-navy-100 p-4 mb-5 flex items-center justify-between">
+      <div>
+        <h3 class="font-bold text-navy-900">Squad Roster</h3>
+        <p class="text-xs text-navy-500">Add, edit, or remove players from the squad.</p>
+      </div>
+      <button onclick="openPlayerModal(null)" class="bg-navy-700 hover:bg-navy-800 text-white text-sm font-semibold px-4 py-2 rounded-lg">➕ Add Player</button>
+    </div>
+    <div class="bg-white rounded-xl shadow border border-navy-100 overflow-hidden">
+      <div class="overflow-x-auto scrollbar-thin">
+        <table class="w-full text-sm">
+          <thead class="bg-navy-50 text-navy-600 text-xs uppercase">
+            <tr>
+              <th class="text-left px-4 py-2">Name</th>
+              <th class="text-left px-4 py-2">Role</th>
+              <th class="text-left px-4 py-2">Phone</th>
+              <th class="text-right px-4 py-2">Balance</th>
+              <th class="text-center px-4 py-2">Status</th>
+              <th class="text-right px-4 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rows || `<tr><td colspan="6" class="text-center text-navy-400 py-6">No players yet. Add your first player.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function openPlayerModal(playerId){
+  document.getElementById('player-form-id').value = playerId || '';
+  document.getElementById('player-modal-title').textContent = playerId ? 'Edit Player' : 'Add Player';
+  document.getElementById('player-form-balance-wrap').style.display = playerId ? 'none' : 'block';
+
+  if(playerId){
+    const p = getPlayerById(playerId);
+    document.getElementById('player-form-name').value = p.name;
+    document.getElementById('player-form-phone').value = p.phone || '';
+    document.getElementById('player-form-role').value = p.role;
+    document.getElementById('player-form-balance').value = p.balance;
+  } else {
+    document.getElementById('player-form-name').value = '';
+    document.getElementById('player-form-phone').value = '';
+    document.getElementById('player-form-role').value = 'Batsman';
+    document.getElementById('player-form-balance').value = 0;
+  }
+  document.getElementById('modal-player').classList.remove('hidden');
+}
+function closePlayerModal(){ document.getElementById('modal-player').classList.add('hidden'); }
+
+function savePlayerModal(){
+  const id = document.getElementById('player-form-id').value;
+  const name = document.getElementById('player-form-name').value.trim();
+  const phone = document.getElementById('player-form-phone').value.trim();
+  const role = document.getElementById('player-form-role').value;
+  const balance = Number(document.getElementById('player-form-balance').value) || 0;
+
+  if(!name){ showToast('Player name is required', 'error'); return; }
+
+  if(id){
+    const p = getPlayerById(id);
+    p.name = name; p.phone = phone; p.role = role;
+    state.ledger.filter(l => l.playerId === id).forEach(l => l.playerName = name);
+    showToast('Player updated ✏️');
+  } else {
+    state.players.push({ id: genId('p'), name, phone, role, balance });
+    showToast('Player added to squad ➕');
+  }
+  closePlayerModal();
+  persist();
+}
+
+function deletePlayer(id){
+  const p = getPlayerById(id);
+  if(!p) return;
+  if(!window.confirm(`Remove ${p.name} from the squad? Their transaction history will be kept for records.`)) return;
+  state.players = state.players.filter(x => x.id !== id);
+  showToast('Player removed 🗑️', 'info');
+  persist();
+}
+
+/* --- Payment Management --- */
+function renderAdminPaymentTab(){
+  const options = [...state.players].sort((a,b)=>a.name.localeCompare(b.name))
+    .map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${formatINR(p.balance)})</option>`).join('');
+
+  const allPayments = [...state.ledger].filter(l=>l.type==='Advance Paid')
+    .sort((a,b)=> new Date(b.date) - new Date(a.date) || b.id.localeCompare(a.id))
+    .map(l => `
+      <tr class="border-b border-navy-50 hover:bg-navy-50/50">
+        <td class="px-4 py-2 text-navy-500 whitespace-nowrap">${formatDate(l.date)}</td>
+        <td class="px-4 py-2 font-medium text-navy-900 whitespace-nowrap">${escapeHtml(l.playerName)}</td>
+        <td class="px-4 py-2 text-navy-600">${escapeHtml(l.description || '')}</td>
+        <td class="px-4 py-2 text-right font-semibold text-emerald-600 whitespace-nowrap">+${formatINR(l.amount)}</td>
+        <td class="px-4 py-2 text-right whitespace-nowrap">
+          <button onclick="openPaymentEditModal('${l.id}')" class="text-navy-600 hover:text-navy-900 text-xs font-semibold px-2 py-1 rounded hover:bg-navy-50">✏️ Edit</button>
+          <button onclick="deletePayment('${l.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50">🗑️ Delete</button>
+        </td>
+      </tr>`).join('');
+
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="bg-white rounded-xl shadow border border-navy-100 p-5">
+        <h3 class="font-bold text-navy-900 mb-1">💰 Record Advance Payment</h3>
+        <p class="text-xs text-navy-500 mb-4">Add credit to a player's balance when they pay in advance.</p>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-semibold text-navy-600">Player *</label>
+            <select id="payment-player" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+              <option value="">Select a player…</option>
+              ${options}
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-navy-600">Amount Paid (₹) *</label>
+            <input id="payment-amount" type="number" min="1" placeholder="e.g. 500" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-navy-600">Date</label>
+            <input id="payment-date" type="date" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-navy-600">Description</label>
+            <input id="payment-desc" type="text" value="Advance payment" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <button onclick="recordPayment()" class="w-full bg-navy-700 hover:bg-navy-800 text-white font-semibold py-2.5 rounded-lg text-sm">Record Payment</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow border border-navy-100 overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-navy-100 flex items-center justify-between">
+          <h3 class="font-bold text-navy-900">All Payments</h3>
+          <span class="text-xs text-navy-400">${allPayments ? '' : ''}${state.ledger.filter(l=>l.type==='Advance Paid').length} record(s)</span>
+        </div>
+        <div class="overflow-auto scrollbar-thin max-h-[420px]">
+          <table class="w-full text-sm">
+            <thead class="bg-navy-50 text-navy-600 text-xs uppercase sticky top-0">
+              <tr>
+                <th class="text-left px-4 py-2">Date</th>
+                <th class="text-left px-4 py-2">Player</th>
+                <th class="text-left px-4 py-2">Description</th>
+                <th class="text-right px-4 py-2">Amount</th>
+                <th class="text-right px-4 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>${allPayments || `<tr><td colspan="5" class="text-center text-navy-400 py-6">No payments recorded yet.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function recordPayment(){
+  const playerId = document.getElementById('payment-player').value;
+  const amount = Number(document.getElementById('payment-amount').value);
+  const date = document.getElementById('payment-date').value || new Date().toISOString().slice(0,10);
+  const desc = document.getElementById('payment-desc').value.trim() || 'Advance payment';
+
+  if(!playerId){ showToast('Please select a player', 'error'); return; }
+  if(!amount || amount <= 0){ showToast('Enter a valid amount', 'error'); return; }
+
+  const player = getPlayerById(playerId);
+  player.balance += amount;
+  state.ledger.push({ id: genId('l'), playerId, playerName: player.name, type:'Advance Paid', amount, date, description: desc });
+
+  showToast(`₹${amount} recorded for ${player.name} 💰`);
+  persist();
+}
+
+function openPaymentEditModal(ledgerId){
+  const entry = state.ledger.find(l => l.id === ledgerId);
+  if(!entry) return;
+  document.getElementById('payment-edit-id').value = ledgerId;
+  document.getElementById('payment-edit-player-name').textContent = entry.playerName;
+  document.getElementById('payment-edit-amount').value = entry.amount;
+  document.getElementById('payment-edit-date').value = entry.date;
+  document.getElementById('payment-edit-desc').value = entry.description || '';
+  document.getElementById('modal-payment-edit').classList.remove('hidden');
+}
+function closePaymentEditModal(){ document.getElementById('modal-payment-edit').classList.add('hidden'); }
+
+function savePaymentEdit(){
+  const id = document.getElementById('payment-edit-id').value;
+  const entry = state.ledger.find(l => l.id === id);
+  if(!entry) return;
+
+  const newAmount = Number(document.getElementById('payment-edit-amount').value);
+  const newDate = document.getElementById('payment-edit-date').value;
+  const newDesc = document.getElementById('payment-edit-desc').value.trim();
+
+  if(!newAmount || newAmount <= 0){ showToast('Enter a valid amount', 'error'); return; }
+
+  const player = getPlayerById(entry.playerId);
+  if(player) player.balance += (newAmount - entry.amount);
+
+  entry.amount = newAmount;
+  entry.date = newDate || entry.date;
+  entry.description = newDesc;
+
+  closePaymentEditModal();
+  showToast('Payment updated ✏️');
+  persist();
+}
+
+function deletePaymentFromModal(){
+  const id = document.getElementById('payment-edit-id').value;
+  closePaymentEditModal();
+  deletePayment(id);
+}
+
+function deletePayment(ledgerId){
+  const entry = state.ledger.find(l => l.id === ledgerId);
+  if(!entry) return;
+  if(!window.confirm(`Delete this payment of ${formatINR(entry.amount)} for ${entry.playerName}? Their balance will be adjusted accordingly.`)) return;
+
+  const player = getPlayerById(entry.playerId);
+  if(player) player.balance -= entry.amount;
+
+  state.ledger = state.ledger.filter(l => l.id !== ledgerId);
+  showToast('Payment deleted 🗑️', 'info');
+  persist();
+}
+
+/* --- Match Logistics --- */
+function renderAdminMatchTab(){
+  const editingMatch = matchEditingId ? state.matches.find(m => m.id === matchEditingId) : null;
+
+  const checklist = [...state.players].sort((a,b)=>a.name.localeCompare(b.name)).map(p => {
+    const checked = editingMatch ? editingMatch.presentPlayerIds.includes(p.id) : false;
+    return `
+    <label class="flex items-center gap-2 border border-navy-100 rounded-lg px-3 py-2 hover:bg-navy-50 cursor-pointer">
+      <input type="checkbox" id="present-${p.id}" class="w-4 h-4 accent-navy-700" ${checked ? 'checked' : ''}>
+      <span class="text-sm text-navy-800">${escapeHtml(p.name)}</span>
+      <span class="text-xs text-navy-400 ml-auto">${formatINR(p.balance)}</span>
+    </label>`;
+  }).join('');
+
+  const matchList = [...state.matches].sort((a,b)=> new Date(b.date) - new Date(a.date)).map(m => `
+    <tr class="border-b border-navy-50 hover:bg-navy-50/50 ${m.id===matchEditingId ? 'bg-gold-500/10' : ''}">
+      <td class="px-4 py-2 text-navy-500 whitespace-nowrap">${formatDate(m.date)}</td>
+      <td class="px-4 py-2 font-medium text-navy-900 whitespace-nowrap">${escapeHtml(m.opponent)}</td>
+      <td class="px-4 py-2 text-right text-navy-600 whitespace-nowrap">${formatINR(m.fee)}</td>
+      <td class="px-4 py-2 text-center text-navy-600 whitespace-nowrap">${m.presentPlayerIds.length} present</td>
+      <td class="px-4 py-2 text-right whitespace-nowrap">
+        <button onclick="editMatch('${m.id}')" class="text-navy-600 hover:text-navy-900 text-xs font-semibold px-2 py-1 rounded hover:bg-navy-50">✏️ Edit</button>
+        <button onclick="deleteMatch('${m.id}')" class="text-red-600 hover:text-red-800 text-xs font-semibold px-2 py-1 rounded hover:bg-red-50">🗑️ Delete</button>
+      </td>
+    </tr>`).join('');
+
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="bg-white rounded-xl shadow border ${editingMatch ? 'border-gold-500' : 'border-navy-100'} p-5">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="font-bold text-navy-900">${editingMatch ? '✏️ Edit Match' : '🏏 Log a New Match'}</h3>
+          ${editingMatch ? `<span class="text-xs bg-gold-500/20 text-gold-600 font-semibold px-2 py-0.5 rounded-full border border-gold-500/40">Editing</span>` : ''}
+        </div>
+        <p class="text-xs text-navy-500 mb-4">Mark players present — match fee is auto-deducted from their balance. Editing recalculates fees for everyone based on the new attendance.</p>
+        <input type="hidden" id="match-form-id" value="${editingMatch ? editingMatch.id : ''}">
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-navy-600">Match Date *</label>
+              <input id="match-date" type="date" value="${editingMatch ? editingMatch.date : ''}" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-navy-600">Fee per Player (₹) *</label>
+              <input id="match-fee" type="number" min="1" value="${editingMatch ? editingMatch.fee : ''}" placeholder="e.g. 300" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-navy-600">Opponent Team *</label>
+            <input id="match-opponent" type="text" value="${editingMatch ? escapeHtml(editingMatch.opponent) : ''}" placeholder="e.g. Royal Strikers CC" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-navy-600 block mb-1">Attendance Checklist</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto scrollbar-thin pr-1">
+              ${checklist || '<p class="text-navy-400 text-sm">No players in squad.</p>'}
+            </div>
+          </div>
+          <div class="flex gap-2">
+            ${editingMatch ? `<button onclick="cancelMatchEdit()" class="flex-1 border border-navy-200 rounded-lg py-2.5 text-sm font-medium text-navy-700 hover:bg-navy-50">Cancel Edit</button>` : ''}
+            <button onclick="saveOrUpdateMatch()" class="flex-1 bg-navy-700 hover:bg-navy-800 text-white font-semibold py-2.5 rounded-lg text-sm">
+              ${editingMatch ? 'Update Match &amp; Recalculate Fees' : 'Save Match &amp; Deduct Fees'}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow border border-navy-100 overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-navy-100"><h3 class="font-bold text-navy-900">Logged Matches</h3></div>
+        <div class="overflow-auto scrollbar-thin max-h-[420px]">
+          <table class="w-full text-sm">
+            <thead class="bg-navy-50 text-navy-600 text-xs uppercase sticky top-0">
+              <tr><th class="text-left px-4 py-2">Date</th><th class="text-left px-4 py-2">Opponent</th><th class="text-right px-4 py-2">Fee</th><th class="text-center px-4 py-2">Attendance</th><th class="text-right px-4 py-2">Actions</th></tr>
+            </thead>
+            <tbody>${matchList || `<tr><td colspan="5" class="text-center text-navy-400 py-6">No matches yet.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function saveOrUpdateMatch(){
+  const date = document.getElementById('match-date').value;
+  const opponent = document.getElementById('match-opponent').value.trim();
+  const fee = Number(document.getElementById('match-fee').value);
+
+  if(!date){ showToast('Please select a match date', 'error'); return; }
+  if(!opponent){ showToast('Please enter opponent team name', 'error'); return; }
+  if(!fee || fee <= 0){ showToast('Enter a valid match fee', 'error'); return; }
+
+  const presentPlayerIds = state.players.filter(p => document.getElementById('present-' + p.id)?.checked).map(p => p.id);
+  const editId = document.getElementById('match-form-id').value;
+
+  if(editId){
+    // Editing an existing match: revert old effects, then re-apply with new data
+    const match = state.matches.find(m => m.id === editId);
+    if(!match){ showToast('Match not found', 'error'); return; }
+
+    match.presentPlayerIds.forEach(pid => {
+      const pl = getPlayerById(pid);
+      if(pl) pl.balance += match.fee;
+    });
+    state.ledger = state.ledger.filter(l => l.matchId !== editId);
+
+    match.date = date;
+    match.day = dayFromDate(date);
+    match.opponent = opponent;
+    match.fee = fee;
+    match.presentPlayerIds = presentPlayerIds;
+
+    presentPlayerIds.forEach(pid => {
+      const pl = getPlayerById(pid);
+      if(!pl) return;
+      pl.balance -= fee;
+      state.ledger.push({ id: genId('l'), matchId: editId, playerId: pid, playerName: pl.name, type:'Match Fee Deduction', amount: fee, date, description: `Match fee vs ${opponent}` });
+    });
+
+    matchEditingId = null;
+    showToast(`Match vs ${opponent} updated — fees recalculated 🔄`);
+  } else {
+    const id = genId('m');
+    state.matches.push({ id, date, day: dayFromDate(date), opponent, fee, presentPlayerIds });
+
+    presentPlayerIds.forEach(pid => {
+      const player = getPlayerById(pid);
+      player.balance -= fee;
+      state.ledger.push({ id: genId('l'), matchId: id, playerId: pid, playerName: player.name, type:'Match Fee Deduction', amount: fee, date, description: `Match fee vs ${opponent}` });
+    });
+
+    showToast(`Match vs ${opponent} logged — fees deducted for ${presentPlayerIds.length} player(s) 🏏`);
+  }
+
+  persist();
+}
+
+function editMatch(matchId){
+  matchEditingId = matchId;
+  render();
+}
+
+function cancelMatchEdit(){
+  matchEditingId = null;
+  render();
+}
+
+function deleteMatch(matchId){
+  const match = state.matches.find(m => m.id === matchId);
+  if(!match) return;
+  if(!window.confirm(`Delete the match vs ${match.opponent} on ${formatDate(match.date)}? Match fees will be refunded to all players who were marked present.`)) return;
+
+  match.presentPlayerIds.forEach(pid => {
+    const pl = getPlayerById(pid);
+    if(pl) pl.balance += match.fee;
+  });
+  state.ledger = state.ledger.filter(l => l.matchId !== matchId);
+  state.matches = state.matches.filter(m => m.id !== matchId);
+
+  if(matchEditingId === matchId) matchEditingId = null;
+
+  showToast('Match deleted and fees refunded 🗑️', 'info');
+  persist();
+}
+
+/* --- GitHub Sync Settings --- */
+function renderAdminSettingsTab(){
+  const cfg = githubConfig || {};
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="bg-white rounded-xl shadow border border-navy-100 p-5">
+        <h3 class="font-bold text-navy-900 mb-1">🔗 GitHub Data Sync</h3>
+        <p class="text-xs text-navy-500 mb-4">
+          Store all squad data as a JSON file in a GitHub repo so it persists across devices and refreshes — for free.
+        </p>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-semibold text-navy-600">GitHub Username / Org *</label>
+            <input id="gh-owner" type="text" value="${escapeHtml(cfg.owner || '')}" placeholder="e.g. your-username" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-navy-600">Repository Name *</label>
+            <input id="gh-repo" type="text" value="${escapeHtml(cfg.repo || '')}" placeholder="e.g. omcc-data" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-navy-600">Branch</label>
+              <input id="gh-branch" type="text" value="${escapeHtml(cfg.branch || 'main')}" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-navy-600">File Path</label>
+              <input id="gh-path" type="text" value="${escapeHtml(cfg.path || 'omcc-data.json')}" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-navy-600">Personal Access Token (fine-grained, repo contents read/write) *</label>
+            <input id="gh-token" type="password" value="${escapeHtml(cfg.token || '')}" placeholder="ghp_… or github_pat_…" class="w-full border border-navy-200 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <div class="flex gap-2 pt-2">
+            <button onclick="saveGithubSettings()" class="flex-1 bg-navy-700 hover:bg-navy-800 text-white font-semibold py-2.5 rounded-lg text-sm">🔄 Connect &amp; Load Data</button>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="persist({pushToGithub:true})" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg text-sm">💾 Force Save Now</button>
+            <button onclick="disconnectGithub()" class="flex-1 border border-red-200 text-red-600 hover:bg-red-50 font-semibold py-2 rounded-lg text-sm">✖ Disconnect</button>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow border border-navy-100 p-5">
+        <h3 class="font-bold text-navy-900 mb-2">ℹ️ How this works</h3>
+        <ul class="text-sm text-navy-600 space-y-2 list-disc pl-5">
+          <li>Create a small GitHub repo (public or private) to hold your data file.</li>
+          <li>Generate a <strong>fine-grained Personal Access Token</strong> scoped only to that repo, with <strong>Contents: Read and write</strong> permission.</li>
+          <li>Every time you add a player, log a payment, or record a match, the app commits the updated JSON file to your repo automatically.</li>
+          <li>On refresh, the app pulls the latest file from GitHub — so your data survives across browsers and devices.</li>
+        </ul>
+        <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+          ⚠️ <strong>Security note:</strong> your token is stored only in this browser's local storage and is sent only to
+          <code>api.github.com</code>. Never share this file's token field or your saved browser profile with others.
+          Use a token scoped to a single, non-critical repo.
+        </div>
+        <div class="mt-4">
+          <p class="text-xs font-semibold text-navy-500 uppercase mb-1">Current Status</p>
+          <p class="text-sm text-navy-700">${escapeHtml(syncMessage)}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveGithubSettings(){
+  const owner = document.getElementById('gh-owner').value.trim();
+  const repo = document.getElementById('gh-repo').value.trim();
+  const branch = document.getElementById('gh-branch').value.trim() || 'main';
+  const path = document.getElementById('gh-path').value.trim() || 'omcc-data.json';
+  const token = document.getElementById('gh-token').value.trim();
+
+  if(!owner || !repo || !token){ showToast('Owner, repo, and token are all required', 'error'); return; }
+
+  githubConfig = { owner, repo, branch, path, token };
+  localStorage.setItem(LS_GH_KEY, JSON.stringify(githubConfig));
+  showToast('GitHub settings saved — loading data…', 'info');
+
+  await loadData();
+  render();
+
+  // If GitHub had no file yet, push our current local state up immediately
+  if(syncStatus === 'idle' && syncMessage.includes('not found')){
+    await persist();
+  }
+}
+
+function disconnectGithub(){
+  githubConfig = null;
+  githubSha = null;
+  localStorage.removeItem(LS_GH_KEY);
+  syncStatus = 'idle';
+  syncMessage = 'Disconnected from GitHub — using local browser storage only.';
+  showToast('Disconnected from GitHub', 'info');
+  render();
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+async function init(){
+  isAdmin = sessionStorage.getItem(SS_ADMIN_KEY) === 'true';
+  const cfgRaw = localStorage.getItem(LS_GH_KEY);
+  if(cfgRaw){ try{ githubConfig = JSON.parse(cfgRaw); }catch(e){} }
+
+  try{
+    await loadData();
+  }catch(e){
+    console.error('Init load error:', e);
+    if(!state) state = loadLocalOrMock();
+    syncStatus = 'error';
+    syncMessage = 'Startup error (' + (e.message || 'unknown') + '). Using local cached data instead.';
+  }finally{
+    render();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
